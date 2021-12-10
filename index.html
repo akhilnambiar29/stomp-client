@@ -1,0 +1,294 @@
+<link rel="icon"
+      type="image/png"
+      href="raceleap.png">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.6.0/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luxon@1.27.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.0.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-streaming@2.0.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@5.0.0/bundles/stomp.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+<!--<script src="https://cdn.skypack.dev/@kurkle/color"></script>-->
+
+<canvas id="AmsterdamChart" width="50" height="10"></canvas>
+<canvas id="LondonChart" width="50" height="10"></canvas>
+<div style="float: right"><img src="raceleap.png" width="350vw"/></div>
+<script>
+
+    const client = new StompJs.Client({
+        brokerURL: 'wss://b-f1caac15-cb49-4d06-b87c-22f983f0da7c-1.mq.eu-west-1.amazonaws.com:61619',
+        connectHeaders: {
+            login: 'raceleap',
+            passcode: 'racingandleaping',
+        },
+        debug: function (str) {
+            console.log(str);
+        },
+        reconnectDelay: 5000,
+        heartbeatIncoming: 4000,
+        heartbeatOutgoing: 4000,
+    });
+    //
+    // const COLORS = [
+    //     '#4dc9f6',
+    //     '#f67019',
+    //     '#f53794',
+    //     '#537bc4',
+    //     '#acc236',
+    //     '#166a8f',
+    //     '#00a950',
+    //     '#58595b',
+    //     '#8549ba'
+    // ];
+
+    client.onConnect = function (frame) {
+
+        callback = function (message) {
+            const values = message.body.split(',')
+
+            const dateNow = Date.now()
+            var count = 0
+
+            if (values[count++] === '01') {
+                amsterdamChart.data.datasets.forEach(function (dataset) {
+                    dataset.data.push({
+                        x: dateNow,
+                        y: values[count++]
+                    })
+                });
+            } else {
+                LondonChart.data.datasets.forEach(function (dataset) {
+                    dataset.data.push({
+                        x: dateNow,
+                        y: values[count++]
+                    })
+                });
+            }
+
+
+            // Do something, all subscribes must be done is this callback
+            // This is needed because this will be executed after a (re)connect
+        }
+
+        var subscription = client.subscribe('/topic/racequeue', callback);
+    };
+
+    client.onStompError = function (frame) {
+        // Will be invoked in case of error encountered at Broker
+        // Bad login/passcode typically will cause an error
+        // Complaint brokers will set `message` header with a brief message. Body may contain details.
+        // Compliant brokers will terminate the connection after any error
+        console.log('Broker reported error: ' + frame.headers['message']);
+        console.log('Additional details: ' + frame.body);
+    };
+
+    client.activate();
+
+
+    const ctx = document.getElementById('AmsterdamChart').getContext('2d');
+
+    const amsterdamChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
+            datasets: [{
+                label: 'posx',
+                data: [],
+                borderColor: 'rgba(255, 99, 132, 1)'
+            },
+                {
+                    label: 'posy',
+                    data: [],
+                    borderColor: 'rgba(255, 206, 86, 1)'
+                },
+                {
+                    label: 'posz',
+                    data: [],
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                },
+                {
+                    label: 'rotx',
+                    data: [],
+                    borderColor: 'rgba(153, 102, 255, 1)'
+                },
+                {
+                    label: 'roty',
+                    data: [],
+                    borderColor: 'rgba(255, 159, 64, 1)'
+                },
+                {
+                    label: 'rotz',
+                    data: [],
+                    borderColor: 'rgba(255, 206, 86, 1)'
+                },
+                {
+                    label: 'magx',
+                    data: [],
+                    borderColor: 'rgba(180, 207, 2, 1)'
+                },
+                {
+                    label: 'magy',
+                    data: [],
+                    borderColor: 'rgba(43, 109, 166, 1)'
+                },
+                {
+                    label: 'magz',
+                    data: [],
+                    borderColor: 'rgba(166, 43, 117, 1)'
+                }]
+        },
+        options: {
+            //
+            // elements: {
+            //     line: {
+            //         fill: false,
+            //         backgroundColor: getLineColor,
+            //         borderColor: getLineColor,
+            //     },
+            //     point: {
+            //         backgroundColor: getLineColor,
+            //         hoverBackgroundColor: makeHalfAsOpaque,
+            //         radius: adjustRadiusBasedOnData,
+            //         pointStyle: alternatePointStyles,
+            //         hoverRadius: 15,
+            //     }
+            // },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Realtime streaming data from Amsterdam',
+                    font: {'weight': 'bold', 'size': 30}
+                }
+            },
+            scales: {
+                x: {
+                    type: 'realtime',
+                    ticks: {
+                        callback: function (value) {
+                            return moment(value, "HH:mm:ss").format("mm:ss");
+                        }
+                    },
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        }
+
+    });
+
+
+    const ctx2 = document.getElementById('LondonChart').getContext('2d');
+
+    const LondonChart = new Chart(ctx2, {
+        type: 'line',
+        data: {
+            labels: ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
+            datasets: [{
+                label: 'posx',
+                data: [],
+                borderColor: 'rgba(255, 99, 132, 1)'
+            },
+                {
+                    label: 'posy',
+                    data: [],
+                    borderColor: 'rgba(255, 206, 86, 1)'
+                },
+                {
+                    label: 'posz',
+                    data: [],
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                },
+                {
+                    label: 'rotx',
+                    data: [],
+                    borderColor: 'rgba(153, 102, 255, 1)'
+                },
+                {
+                    label: 'roty',
+                    data: [],
+                    borderColor: 'rgba(255, 159, 64, 1)'
+                },
+                {
+                    label: 'rotz',
+                    data: [],
+                    borderColor: 'rgba(255, 206, 86, 1)'
+                },
+                {
+                    label: 'magx',
+                    data: [],
+                    borderColor: 'rgba(180, 207, 2, 1)'
+                },
+                {
+                    label: 'magy',
+                    data: [],
+                    borderColor: 'rgba(43, 109, 166, 1)'
+                },
+                {
+                    label: 'magz',
+                    data: [],
+                    borderColor: 'rgba(166, 43, 117, 1)'
+                }]
+        },
+        options: {
+            plugins: {
+                title: {
+                    display: true,
+                    text: "Realtime streaming data from London",
+                    font: {'weight': 'bold', 'size': 30}
+                }
+            },
+            scales: {
+                x: {
+                    type: 'realtime',
+                    ticks: {
+                        callback: function (value) {
+                            return moment(value, "HH:mm:ss").format("mm:ss");
+                        }
+                    },
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        }
+
+    });
+    //
+    // function getLineColor(ctx) {
+    //     return color(ctx.datasetIndex);
+    // }
+    //
+    //
+    // function color(index) {
+    //     return COLORS[index % COLORS.length];
+    // }
+    //
+    //
+    // function alternatePointStyles(ctx) {
+    //     const index = ctx.dataIndex;
+    //     return index % 2 === 0 ? 'circle' : 'rect';
+    // }
+    //
+    // function makeHalfAsOpaque(ctx) {
+    //     return transparentize(getLineColor(ctx));
+    // }
+    //
+    // function adjustRadiusBasedOnData(ctx) {
+    //     if (ctx.parsed === undefined) {
+    //         return 1
+    //     }
+    //     const v = ctx.parsed.y;
+    //     return v < 10 ? 5
+    //         : v < 25 ? 7
+    //             : v < 50 ? 9
+    //                 : v < 75 ? 11
+    //                     : 15;
+    // }
+    //
+    // function transparentize(value, opacity) {
+    //     var alpha = opacity === undefined ? 0.5 : 1 - opacity;
+    //     return colorLib(value).alpha(alpha).rgbString();
+    // }
+
+</script>
